@@ -15,7 +15,6 @@ class AddressViewSet(viewsets.ModelViewSet):
 
 
 class CartViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
 
     def get_cart(self, user_id):
         """Ensure the user has a cart. Create if missing."""
