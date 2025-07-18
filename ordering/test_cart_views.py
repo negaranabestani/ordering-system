@@ -3,7 +3,7 @@ import logging
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
-from ordering.models import User, Cart, Product
+from ordering.models import User, Cart, Product, CartDetail
 from django.urls import reverse
 
 
@@ -33,67 +33,67 @@ class CartAPITests(TestCase):
         url = reverse('cart-detail', args=[self.user.id])
         response = self.client.get(url)
 
-        # Assert status and data
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['user'], self.user.id)
-        self.assertEqual(len(response.data['products']), 0)  # Cart should be empty initially
+        self.assertEqual(response.data['user'], str(self.user.id))
+        self.assertEqual(len(response.data['items']), 0)
+
 
     def test_add_products_to_cart(self):
         """
-        Test adding products to the cart.
+        Test adding products to the cart with quantities.
         """
         url = reverse('cart-add-products', args=[self.user.id])
-        data = self.products_data
-        response = self.client.post(url, data, format='json')
-        # Assert that the status is 200 OK and products are added to the cart
+        response = self.client.post(url, self.products_data, format='json')
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['cart']['products']), len(self.products_data))
+        self.assertEqual(len(response.data['cart']['items']), len(self.products_data))
+
+        # Optional: check quantity matches
+        item_map = {item['product']['name']: item['quantity'] for item in response.data['cart']['items']}
+        for product in self.products_data:
+            self.assertEqual(item_map[product['name']], product['quantity'])
 
     def test_remove_product_from_cart(self):
         """
         Test removing a product from the cart.
         """
-        # First, add some products to the cart
+        # Add products first
         self.client.post(reverse('cart-add-products', args=[self.user.id]), self.products_data, format='json')
 
-        # Now, remove a product
-        product_to_remove = self.products_data[0]  # Remove the first product (Pizza)
+        product_to_remove = self.products_data[0]  # "Pizza"
         url = reverse('cart-remove-product', args=[self.user.id])
-        data = {"name": product_to_remove['name']}
-        response = self.client.post(url, data, format='json')
+        response = self.client.post(url, {"name": product_to_remove['name']}, format='json')
 
-        # Assert that the product was removed
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['cart']['products']), len(self.products_data) - 1)
+
+        item_names = [item['product']['name'] for item in response.data['cart']['items']]
+        self.assertNotIn(product_to_remove['name'], item_names)
+        self.assertEqual(len(response.data['cart']['items']), 1)
 
     def test_clear_cart(self):
         """
         Test clearing all products from the cart.
         """
-        # Add some products to the cart first
         self.client.post(reverse('cart-add-products', args=[self.user.id]), self.products_data, format='json')
 
-        # Clear the cart
         url = reverse('cart-clear-cart', args=[self.user.id])
         response = self.client.post(url)
 
-        # Assert that the cart is empty
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['cart']['products']), 0)
+        self.assertEqual(len(response.data['cart']['items']), 0)
+        self.assertEqual(CartDetail.objects.filter(cart__user=self.user).count(), 0)
 
-    # def test_get_cart_total_price(self):
-    #     """
-    #     Test getting the total price of the cart.
-    #     """
-    #     # Add products to the cart
-    #     self.client.post(reverse('cart-add-products', args=[self.user.id]), self.products_data, format='json')
-    #
-    #     # Get the total price
-    #     url = reverse('cart-total-price', args=[self.user.id])
-    #     response = self.client.get(url)
-    #
-    #     # Assert that the total price is correct
-    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
-    #     total_price = sum(product['price'] for product in self.products_data)
-    #     self.assertEqual(response.data['total_price'], total_price)
+    def test_get_cart_total_price(self):
+        """
+        Test getting the total price of the cart.
+        """
+        self.client.post(reverse('cart-add-products', args=[self.user.id]), self.products_data, format='json')
 
+        url = reverse('cart-total-price', args=[self.user.id])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Compute expected total price based on quantity
+        expected_total = sum(p['price'] * p['quantity'] for p in self.products_data)
+        self.assertAlmostEqual(response.data['total_price'], float(expected_total), places=2)
