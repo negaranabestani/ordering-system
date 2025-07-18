@@ -29,32 +29,41 @@ class Product(models.Model):
     def __str__(self):
         return f"{self.name} - ${self.price}"
 
+
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="cart")
-    products = models.ManyToManyField(Product, blank=True)
-
-    def add_products(self, product_list):
-        """Converts JSON list to Product objects and adds them to the cart."""
-        for product_data in product_list:
-            product, _ = Product.objects.get_or_create(name=product_data["name"], price=product_data["price"])
-            self.products.add(product)
-        self.save()
-
-    def remove_product(self, product_name):
-        """Removes a product by name from the cart."""
-        product = self.products.filter(name=product_name).first()
-        if product:
-            self.products.remove(product)
-        self.save()
-
-    def clear_cart(self):
-        """Empties the cart."""
-        self.products.clear()
-        self.save()
 
     def total_price(self):
-        """Calculates total price of all products."""
-        return sum(product.price for product in self.products.all())
+        return sum(detail.total_price() for detail in self.items.all())
+
+    def clear_cart(self):
+        self.items.all().delete()
 
     def __str__(self):
-        return f"Cart of {self.user.id} - {self.products.count()} items"
+        return f"Cart of {self.user.id} - {self.items.count()} items"
+
+class CartDetail(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        unique_together = ("cart", "product")  # prevent duplicate product rows
+
+    def increase(self, amount=1):
+        self.quantity += amount
+        self.save()
+
+    def decrease(self, amount=1):
+        self.quantity = max(0, self.quantity - amount)
+        if self.quantity == 0:
+            self.delete()
+        else:
+            self.save()
+
+    def total_price(self):
+        return self.product.price * self.quantity
+
+    def __str__(self):
+        return f"{self.quantity} x {self.product.name} in cart {self.cart.id}"
