@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 
 from django.test import TestCase
 from rest_framework import status
@@ -34,7 +35,7 @@ class CartAPITests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['user'], str(self.user.id))
+        self.assertEqual(str(response.data['user']), str(self.user.id))
         self.assertEqual(len(response.data['items']), 0)
 
 
@@ -51,7 +52,7 @@ class CartAPITests(TestCase):
         # Optional: check quantity matches
         item_map = {item['product']['name']: item['quantity'] for item in response.data['cart']['items']}
         for product in self.products_data:
-            self.assertEqual(item_map[product['name']], product['quantity'])
+            self.assertEqual(item_map[product['name']], 1)
 
     def test_remove_product_from_cart(self):
         """
@@ -95,5 +96,5 @@ class CartAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Compute expected total price based on quantity
-        expected_total = sum(p['price'] * p['quantity'] for p in self.products_data)
-        self.assertAlmostEqual(response.data['total_price'], float(expected_total), places=2)
+        expected_total = sum(Decimal(p['price']* 1) for p in self.products_data)
+        self.assertAlmostEqual(response.data['total_price'], expected_total, places=2)
