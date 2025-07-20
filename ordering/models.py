@@ -34,15 +34,15 @@ class Product(models.Model):
 
 class Order(models.Model):
     class Status(models.TextChoices):
-        PENDING = 'pending', 'Pending'
-        PAID = 'paid', 'Paid'
-        SHIPPED = 'shipped', 'Shipped'
+        IN_PROGRESS = 'in_progress', 'In Progress'
+        ACCEPTED = 'accepted', 'Accepted'
+        DELIVERED = 'delivered', 'Delivered'
         CANCELLED = 'cancelled', 'Cancelled'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders")
     address = models.ForeignKey(Address, on_delete=models.PROTECT, related_name="orders")
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACCEPTED)
     total_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 

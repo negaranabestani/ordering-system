@@ -72,7 +72,7 @@ class OrderViewSet(viewsets.ViewSet):
         if new_status not in valid_statuses:
             return Response(
                 {"error": f"Invalid status. Valid options: {valid_statuses}"},
-                status=drf_status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         order.status = new_status
