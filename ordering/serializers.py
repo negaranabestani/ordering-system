@@ -1,13 +1,27 @@
 from rest_framework import serializers
 from .models import Address
-from .models import Cart, Product, CartDetail
+from .models import Cart, Product, CartDetail, OrderDetail, Order
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = '__all__'
 
+class OrderDetailSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
 
+    class Meta:
+        model = OrderDetail
+        fields = ['id', 'product', 'quantity', 'total_price']
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    details = OrderDetailSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Order
+        fields = ['id', 'user', 'created_at', 'total_price', 'details']
+        read_only_fields = ['id', 'created_at', 'total_price', 'details']
 class CartDetailSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
 
