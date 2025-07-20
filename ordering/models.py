@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 import uuid
 
@@ -29,6 +31,37 @@ class Product(models.Model):
     def __str__(self):
         return f"{self.name} - ${self.price}"
 
+
+class Order(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders")
+    created_at = models.DateTimeField(auto_now_add=True)
+    total_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    def calculate_total_price(self):
+        total = sum(detail.total_price for detail in self.details.all())
+        self.total_price = total
+        self.save()
+        return total
+
+    def __str__(self):
+        return f"Order {self.id} by {self.user.id} - {self.total_price} Toman"
+
+
+class OrderDetail(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="details")
+    product = models.ForeignKey(Product, on_delete=models.PROTECT)
+    quantity = models.PositiveIntegerField()
+    total_price = models.DecimalField(max_digits=12, decimal_places=2)
+
+    def save(self, *args, **kwargs):
+        # Ensure total_price is always calculated based on product.price * quantity
+        self.total_price = Decimal(self.product.price) * self.quantity
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.quantity} x {self.product.name} = {self.total_price}"
 
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="cart")
