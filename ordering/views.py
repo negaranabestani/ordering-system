@@ -59,6 +59,26 @@ class OrderViewSet(viewsets.ViewSet):
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["PATCH"], url_path="update-status")
+    def update_status(self, request, pk=None, user_id=None, drf_status=None):
+        """
+        Allows updating the status of an order (e.g., pending → paid).
+        Expects: { "status": "paid" }
+        """
+        order = get_object_or_404(Order, id=pk, user_id=user_id)
+        new_status = request.data.get("status")
+
+        valid_statuses = [choice[0] for choice in Order.Status.choices]
+        if new_status not in valid_statuses:
+            return Response(
+                {"error": f"Invalid status. Valid options: {valid_statuses}"},
+                status=drf_status.HTTP_400_BAD_REQUEST
+            )
+
+        order.status = new_status
+        order.save()
+        return Response({"message": "Order status updated", "order": OrderSerializer(order).data})
+
 class AddressViewSet(viewsets.ModelViewSet):
     queryset = Address.objects.all()
     serializer_class = AddressSerializer
