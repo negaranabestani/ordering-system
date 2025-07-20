@@ -13,6 +13,26 @@ class OrderViewSet(viewsets.ViewSet):
     def get_user(self, user_id):
         return get_object_or_404(User, id=user_id)
 
+    @action(detail=True, methods=["POST"], url_path="cancel")
+    def cancel_order(self, request, pk=None, user_id=None):
+        """
+        Cancel an order (only if not already delivered or cancelled).
+        """
+        order = get_object_or_404(Order, id=pk, user_id=user_id)
+
+        if order.status in [Order.Status.DELIVERED, Order.Status.CANCELLED]:
+            return Response(
+                {"error": f"Order cannot be cancelled in status '{order.status}'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        order.status = Order.Status.CANCELLED
+        order.save()
+        return Response(
+            {"message": "Order cancelled successfully", "order": OrderSerializer(order).data},
+            status=status.HTTP_200_OK
+        )
+
     def list(self, request, user_id=None):
         """List all orders for a user"""
         user = self.get_user(user_id)

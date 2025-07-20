@@ -82,3 +82,15 @@ class OrderAPITests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("Invalid status", response.data["error"])
+
+    def test_cancel_order(self):
+        # Create order
+        self.client.post(reverse("orders-create-from-cart", args=[self.user.id]), {"address_id": self.address.id})
+        order = Order.objects.filter(user=self.user).first()
+
+        # Cancel it
+        url = reverse("orders-cancel-order", args=[self.user.id, order.id])
+        response = self.client.post(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["order"]["status"], "cancelled")
