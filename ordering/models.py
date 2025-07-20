@@ -33,10 +33,18 @@ class Product(models.Model):
 
 
 class Order(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        PAID = 'paid', 'Paid'
+        SHIPPED = 'shipped', 'Shipped'
+        CANCELLED = 'cancelled', 'Cancelled'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders")
-    created_at = models.DateTimeField(auto_now_add=True)
+    address = models.ForeignKey(Address, on_delete=models.PROTECT, related_name="orders")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     total_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def calculate_total_price(self):
         total = sum(detail.total_price for detail in self.details.all())
@@ -45,8 +53,7 @@ class Order(models.Model):
         return total
 
     def __str__(self):
-        return f"Order {self.id} by {self.user.id} - {self.total_price} Toman"
-
+        return f"Order {self.id} ({self.status}) - {self.total_price} Toman"
 
 class OrderDetail(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
